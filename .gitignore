@@ -144,6 +144,14 @@ ENV/
 env.bak/
 venv.bak/
 
+.envmetrics
+.envagent
+
+agent/
+
+# Chat sessions storage
+agent/chat_sessions.json
+
 # Spyder project settings
 .spyderproject
 .spyproject
