@@ -29,12 +29,12 @@ COLLECTION_INTERVAL = int(os.getenv('COLLECTION_INTERVAL', 10))
 
 # Telegram Bot Configuration
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
-TELEGRAM_ALLOWED_USERS = os.getenv('TELEGRAM_ALLOWED_USERS', '').split(',') if os.getenv('TELEGRAM_ALLOWED_USERS') else []
-TELEGRAM_AUTO_SEND_CHAT_ID = os.getenv('TELEGRAM_AUTO_SEND_CHAT_ID')  # Chat ID để gửi status tự động
+TELEGRAM_ALLOWED_USERS = [uid.strip() for uid in os.getenv('TELEGRAM_ALLOWED_USERS', '').split(',') if uid.strip()] if os.getenv('TELEGRAM_ALLOWED_USERS') else []
+TELEGRAM_AUTO_SEND_CHAT_ID = [cid.strip() for cid in os.getenv('TELEGRAM_AUTO_SEND_CHAT_ID', '').split(',') if cid.strip()] if os.getenv('TELEGRAM_AUTO_SEND_CHAT_ID') else []  # List chat IDs để gửi status tự động
 TELEGRAM_AUTO_SEND_INTERVAL = int(os.getenv('TELEGRAM_AUTO_SEND_INTERVAL', 3600))  # Interval (giây), mặc định 1 giờ
 
 # Alert Thresholds Configuration
-TELEGRAM_ALERT_CHAT_ID = os.getenv('TELEGRAM_ALERT_CHAT_ID')  # Chat ID để gửi cảnh báo
+TELEGRAM_ALERT_CHAT_ID = [cid.strip() for cid in os.getenv('TELEGRAM_ALERT_CHAT_ID', '').split(',') if cid.strip()] if os.getenv('TELEGRAM_ALERT_CHAT_ID') else []  # List chat IDs để gửi cảnh báo
 ALERT_CPU_THRESHOLD = float(os.getenv('ALERT_CPU_THRESHOLD', 80))  # CPU % threshold
 ALERT_RAM_THRESHOLD = float(os.getenv('ALERT_RAM_THRESHOLD', 85))  # RAM % threshold
 ALERT_GPU_THRESHOLD = float(os.getenv('ALERT_GPU_THRESHOLD', 90))  # GPU Memory % threshold
@@ -830,12 +830,18 @@ async def check_and_send_alerts(application):
             alert_text += f"\n\n🕐 Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
             alert_text += f"\n🖥️ Host: `{metrics['system']['hostname']}`"
             
-            await application.bot.send_message(
-                chat_id=TELEGRAM_ALERT_CHAT_ID,
-                text=alert_text,
-                parse_mode='Markdown'
-            )
-            print(f"⚠️  Alert sent: {len(alerts)} warning(s)")
+            # Gửi cho tất cả chat IDs
+            for chat_id in TELEGRAM_ALERT_CHAT_ID:
+                try:
+                    await application.bot.send_message(
+                        chat_id=chat_id,
+                        text=alert_text,
+                        parse_mode='Markdown'
+                    )
+                except Exception as e:
+                    print(f"❌ Failed to send alert to {chat_id}: {e}")
+            
+            print(f"⚠️  Alert sent to {len(TELEGRAM_ALERT_CHAT_ID)} chat(s): {len(alerts)} warning(s)")
             
     except Exception as e:
         print(f"❌ Failed to check/send alerts: {e}")
@@ -886,12 +892,18 @@ async def send_auto_status(application):
 {gpu['memory']['used_gb']}/{gpu['memory']['total_gb']} GB
 """
         
-        await application.bot.send_message(
-            chat_id=TELEGRAM_AUTO_SEND_CHAT_ID,
-            text=status_text,
-            parse_mode='Markdown'
-        )
-        print(f"✅ Auto-status sent to chat {TELEGRAM_AUTO_SEND_CHAT_ID}")
+        # Gửi cho tất cả chat IDs
+        for chat_id in TELEGRAM_AUTO_SEND_CHAT_ID:
+            try:
+                await application.bot.send_message(
+                    chat_id=chat_id,
+                    text=status_text,
+                    parse_mode='Markdown'
+                )
+            except Exception as e:
+                print(f"❌ Failed to send auto-status to {chat_id}: {e}")
+        
+        print(f"✅ Auto-status sent to {len(TELEGRAM_AUTO_SEND_CHAT_ID)} chat(s)")
     except Exception as e:
         print(f"❌ Failed to send auto-status: {e}")
 
@@ -966,7 +978,7 @@ async def start_telegram_bot():
                 seconds=TELEGRAM_AUTO_SEND_INTERVAL,
                 args=[application]
             )
-            print(f"📤 Auto-send status enabled: every {TELEGRAM_AUTO_SEND_INTERVAL}s to chat {TELEGRAM_AUTO_SEND_CHAT_ID}")
+            print(f"📤 Auto-send status enabled: every {TELEGRAM_AUTO_SEND_INTERVAL}s to {len(TELEGRAM_AUTO_SEND_CHAT_ID)} chat(s): {', '.join(TELEGRAM_AUTO_SEND_CHAT_ID)}")
         
         if TELEGRAM_ALERT_CHAT_ID:
             scheduler.add_job(
@@ -976,7 +988,8 @@ async def start_telegram_bot():
                 args=[application]
             )
             print(f"⚠️  Alert monitoring enabled: checking every {ALERT_CHECK_INTERVAL}s")
-            print(f"   CPU: {ALERT_CPU_THRESHOLD}% | RAM: {ALERT_RAM_THRESHOLD}% | GPU: {ALERT_GPU_THRESHOLD}% | Disk: {ALERT_DISK_THRESHOLD}%")
+            print(f"   Sending to {len(TELEGRAM_ALERT_CHAT_ID)} chat(s): {', '.join(TELEGRAM_ALERT_CHAT_ID)}")
+            print(f"   Thresholds - CPU: {ALERT_CPU_THRESHOLD}% | RAM: {ALERT_RAM_THRESHOLD}% | GPU: {ALERT_GPU_THRESHOLD}% | Disk: {ALERT_DISK_THRESHOLD}%")
         
         if TELEGRAM_AUTO_SEND_CHAT_ID or TELEGRAM_ALERT_CHAT_ID:
             scheduler.start()
