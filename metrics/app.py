@@ -86,6 +86,7 @@ def get_gpu_info():
                 mem_total = float(parts[4]) if parts[4] != '[N/A]' else 0
                 mem_used = float(parts[5]) if parts[5] != '[N/A]' else 0
                 mem_free = float(parts[6]) if parts[6] != '[N/A]' else 0
+                mem_free_custom = mem_total - mem_used  # Tính chính xác từ total - used
                 
                 return {
                     "index": int(parts[0]),
@@ -96,6 +97,7 @@ def get_gpu_info():
                         "total_gb": round(mem_total / 1024, 2),
                         "used_gb": round(mem_used / 1024, 2),
                         "free_gb": round(mem_free / 1024, 2),
+                        "free_gb_custom": round(mem_free_custom / 1024, 2),  # total - used
                         "usage_percent": round((mem_used / mem_total * 100), 2) if mem_total > 0 else 0
                     },
                     "power_draw_w": round(float(parts[7]), 1) if parts[7] != '[N/A]' else None,
@@ -325,6 +327,7 @@ def send_to_influxdb(metrics):
                 .field("memory_total_gb", gpu['memory']['total_gb']) \
                 .field("memory_used_gb", gpu['memory']['used_gb']) \
                 .field("memory_free_gb", gpu['memory']['free_gb']) \
+                .field("memory_free_gb_custom", gpu['memory']['free_gb_custom']) \
                 .field("memory_usage_percent", gpu['memory']['usage_percent']) \
                 .field("power_draw_w", gpu['power_draw_w'] or 0) \
                 .field("power_limit_w", gpu['power_limit_w'] or 0) \
